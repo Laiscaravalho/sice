@@ -1,6 +1,1 @@
-'use server';
-import { PrismaClient } from '@prisma/client';
-const g = globalThis as unknown as { prisma: PrismaClient|undefined };
-export const prisma = g.prisma ?? new PrismaClient({ log: process.env.NODE_ENV==='development'?['query','error','warn']:['error'] });
-if (process.env.NODE_ENV!=='production') g.prisma=prisma;
-export default prisma;
+/** Sice - Prisma Client singleton */\nimport { PrismaClient } from '@prisma/client';\nconst g = globalThis as unknown as { prisma: PrismaClient|undefined };\nexport const prisma = g.prisma ?? new PrismaClient({ log: process.env.NODE_ENV==='development'?['query','error','warn']:['error'] });\nif (process.env.NODE_ENV !=='production') g.prisma=prisma;\nexport default prisma;\n"
