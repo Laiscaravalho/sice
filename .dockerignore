@@ -1,0 +1,41 @@
+# Dependências
+node_modules
+.npm
+
+# Build artifacts
+.next
+out
+dist
+build
+
+# Ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+.github
+
+# Dev tools
+.vscode
+.idea
+*.log
+npm-debug.log*
+
+# Testes
+coverage
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Docs
+README.md
+CHANGELOG.md
+
+# OS
+.DS_Store
+Thumbs.db
