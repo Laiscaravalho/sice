@@ -1,0 +1,182 @@
+// ──────────
+// Sice — Schema Prisma
+// Banco padrão: PostgreSQL (recomendado para Azure).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATASASES_URL")
+}
+
+enum PerfilUsuario {
+  solicitante
+  auxiliar_admin
+  gestor
+  admin
+}
+
+enum StatusSolicitacao {
+  enviada
+  em_cotacao
+  retornado
+  aguardando_aprovacao
+  aprovada
+  reprovada
+  nf_enviada
+  pago
+  pronto_retirada
+  retirado
+}
+
+enum TipoSolicitacao {
+  material_expediente
+  consumo
+  higiene
+  limpeza
+  ti
+  bem
+  outro
+}
+
+enum CondicaoBem { Otimo Bom Regular Ruim }
+enum StatusPatrimonio { ativo em_manutencao cedido baixado }
+enum TipoBem { proprio terceiro }
+
+model Usuario {
+  id            String        @id @default(cuid())
+  nome          String
+  email         String        @unique
+  senhaHash     String
+  perfil        PerfilUsuario
+  area          String        @default("")
+  rubrica       String        @default("")
+  centroCusto   String        @default("")
+  projeto       String        @default("")
+  primeiroLogin Boolean       @default(true)
+  senhaResetPendente Boolean  @default(false)
+  ativo         Boolean       @default(true)
+  aprovadorId   String?
+  aprovador     Usuario?      @relation("AprovadorWel", fields: [aprovadorId], references: [id])
+  aprovados     Usuario[]     @relation("AprovadorWel")
+  solicitacoesFeitas    Solicitacao[] @relation("SolRel")
+  solicitacoesAprovadas Solicitacao[] @relation("AprWel")
+  historicoAcoes        HistoricoSolicitacao[]
+  retornosEnviados      RetornoSolicitacao[]
+  notificacoes          Notificacao[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("usuarios")
+}
+
+model Solicitacao {
+  id                 String            @id @default(cuid())
+  numero             String            @unique
+  dataCriacao        DateTime          @default(now())
+  area               String
+  rubrica            String            @default("")
+  tipo               TipoSolicitacao
+  justificativa      String            @db.Text
+  status             StatusSolicitacao @default(enviada)
+  tombamentoGerado   Boolean           @default(false)
+  centroCusto        String?
+  rubricaFinanceiro  String?
+  cotacaoData        Json?
+  nfData             Json?
+  solicitanteId      String
+  solicitante        Usuario           @relation("SolRel", fields: [solicitanteId], references: [id])
+  aprovadorId        String?
+  aprovador          Usuario?          @relation("AprWel", fields: [aprovadorId], references: [id])
+  itens              ItemSolicitacao[]
+  anexosCotacao      AnexoCotacao[]
+  historico          HistoricoSolicitacao[]
+  retornos           RetornoSolicitacao[]
+  patrimonioBens     Patrimonio[]
+  notificacoes       Notificacao[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  @@index([status]) @@index([solicitanteId]) @@index([dataCriacao])
+  @@map("solicitacoes")
+}
+
+model ItemSolicitacao {
+  id String @id @default(cuid())
+  descricao String
+  quantidade Int
+  unidade String @default("unid")
+  valorEstimado Decimal @default(0) @db.Decimal(12,2)
+  solicitacaoId String
+  solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  @@index([solicitacaoId]) @@map("itens_solicitacao")
+}
+
+model AnexoCotacao {
+  id String @id @default(cuid())
+  nome String tamanho Int tipo String urlArquivo String?
+  solicitacaoId String
+  solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([solicitacaoId]) @@map("anexos_cotacao")
+}
+
+model HistoricoSolicitacao {
+  id String @id @default(cuid())
+  status StatusSolicitacao
+  comentario String @db.Text @default("")
+  data DateTime @default(now())
+  solicitacaoId String
+  solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  usuarioId String
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  @@index([solicitacaoId]) @@map("historico_solicitacao")
+}
+
+model RetornoSolicitacao {
+  id String @id @default(cuid())
+  mensagem String @db.Text data DateTime @default(now())
+  solicitacaoId String
+  solicitacao Solicitacao @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  autorId Setting
+  autor Usuario @relation(fields: [autorId], references: [id])
+  @@index([solicitacaoId]) @@map("retornos_solicitacao")
+}
+
+model Estoque {
+  id String @id @default(cuid())
+  nome String categoria String quantidade Int @default(0)
+  unidade String @default("unid") minimo Int @default(0)
+  localizacao String @default("") ativo Boolean @default(true)
+  createdAt DateTime @default(now()) updatedAt DateTime @updatedAt
+  @@index([categoria]) @@map("estoque")
+}
+
+model Patrimonio {
+  id String @id @default(cuid())
+  tombamento String @unique descricao String
+  marca String @default("") modelo String @default("")
+  numSerie String @default("") area String responsavel String
+  dataAquisicao DateTime valorAquisicao Decimal @db.Decimal(12,2)
+  localizacao String condicao CondicaoBem @default(Bom)
+  status StatusPatrimonio @default(ativo)
+  observacoes String @default("") @db.Text
+  projeto String @default("") tipoBem TipoBem @default(proprio)
+  notaFiscal String @default("") fornecedor String @default("")
+  dataCompra DateTime? valorPago Decimal? @db.Decimal(12,2)
+  solicitacaoId String?
+  solicitacao Solicitacao? @relation(fields: [solicitacaoId], references: [id])
+  createdAt DateTime @default(now()) updatedAt DateTime @updatedAt
+  @@index([status]) @@index([area]) @@index([projeto]) @@map("patrimonio")
+}
+
+model Notificacao {
+  id String @id @default(cuid())
+  email String assunto String corpo String @db.Text
+  status String lida Boolean @default(false) data DateTime @default(now())
+  userId String
+  usuario Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+  solicitacaoId String?
+  solicitacao Solicitacao? @relation(fields: [solicitacaoId], references: [id], onDelete: SetNull)
+  @@index([userId, lida]) @@index([solicitacaoId]) @@map("notificacoes")
+}
